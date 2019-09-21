@@ -1,0 +1,14 @@
+[Unit]
+Description=backup-cr
+
+[Service]
+User=root
+WorkingDirectory=/opt/backup-cr
+EnvironmentFile=/opt/backup-cr/custom.env
+ExecStart=/bin/bash -c '/opt/backup-cr/backup-cr'
+RestartSec=10s
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

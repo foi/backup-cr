@@ -1,0 +1,16 @@
+name: backup_cr
+version: 1.0.0
+
+authors:
+  - foi <foi@live.ru>
+
+targets:
+  backup-cr:
+    main: src/backup-cr.cr
+
+dependencies:
+  router:
+    github: tbrand/router.cr
+    version: >= 0.2.7
+
+license: MIT
