@@ -25,6 +25,7 @@ class BackupCrServer
     "BACKUP_CR_PATH",
     "BACKUP_CR_DOCKER_VOLUME_BACKUP_PATH",
     "BACKUP_CR_VM_BACKUP_PATH",
+    "BACKUP_CR_FILES_BACKUP_PATH",
     "BACKUP_CR_GZIP_COMPRESSION_LEVEL",
     "BACKUP_CR_KEEP_VERSIONS_COUNT",
     "BACKUP_CR_BACKUP_FILE_EXTENSION",
@@ -123,7 +124,7 @@ class BackupCrServer
       puts "Got lv backup #{params} from #{ip}"
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && are_exists_vg_and_lv(params["vg"], params["volume"]) == "ok"
       perform_response(context, "text/plain", "queued", "lvm volume: #{params["volume"]}", condition) do
-         spawn backup_lv(params["vg"], params["volume"])
+        spawn backup_lv(params["vg"], params["volume"])
       end
     end
 
@@ -132,32 +133,69 @@ class BackupCrServer
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && @@docker && is_docker_volume_exists(params["docker_volume"])
       puts condition
       perform_response(context, "text/plain", "queued", "docker volume: #{params["docker_volume"]}", condition) do
-        spawn backup_docker_volume(params["docker_volume"])
+        spawn backup_folder(params["docker_volume"])
+      end
+    end
+
+    get "/backup/files/" do |context, params|
+      ip = get_ip(context)
+      condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"])
+      perform_response(context, "text/plain", "queued", "folder: #{context.request.query_params["path"]}", condition) do
+        spawn backup_folder(context.request.query_params["path"])
       end
     end
   end
 
-  private def backup_docker_volume(docker_volume)
-    @@QUEUE[docker_volume] = {
+  private def does_this_path_exist?(path)
+    ok = Dir.exists?(path)
+    puts "#{path} #{ ok ? "is exist." : "is not exist!"}"
+  end
+
+  private def backup_folder(object)
+    is_docker_volume = true
+    p object
+    folder = if (object.includes?("/"))
+               is_docker_volume = false
+               object.split("/").last
+             else
+               object
+             end
+    puts "is docker volume? - #{is_docker_volume}"
+    @@QUEUE[folder] = {
       "created_at" => Time.local.to_s,
       "status" => "Added to queue"
     }
-    filename = "#{docker_volume}.docker_volume.#{get_date}.tar.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
-    path = @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]? ? @CONFIG["DOCKER_VOLUME_BACKUP_PATH"] : @CONFIG["PATH"]
-    send_to_external_command("docker volume", "start archiving: #{docker_volume}")
-    @@QUEUE[docker_volume]["status"] = "archiving"
-    command = if @IS_LOCAL
-                "tar -zcf #{path}/#{filename} -C #{docker_volume_path}/#{docker_volume}/_data/ ."
+    filename = "#{folder}.#{ is_docker_volume ? "docker_volume" : "folder" }.#{get_date}.tar.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
+    puts "Forming backup path..."
+    path = if is_docker_volume
+             @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]? ? @CONFIG["DOCKER_VOLUME_BACKUP_PATH"] : @CONFIG["PATH"]
+           else
+             @CONFIG["FILES_BACKUP_PATH"]? ? @CONFIG["FILES_BACKUP_PATH"] : @CONFIG["PATH"]
+           end
+
+    send_to_external_command(object, "start archiving: #{object}")
+    @@QUEUE[folder]["status"] = "archiving"
+    puts "Forming command for backup..."
+    command = if is_docker_volume
+                if @IS_LOCAL
+                  "tar -zcf #{path}/#{filename} -C #{docker_volume_path}/#{folder}/_data/ ."
+                else
+                  "tar czf - #{docker_volume_path}/#{folder}/_data/ | ssh  -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} \"dd of=#{path}/#{filename}\""
+                end
               else
-                "tar czf - #{docker_volume_path}/#{docker_volume}/_data/ | ssh -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} \"dd of=#{path}/#{filename}\""
+                if @IS_LOCAL
+                  "tar -zcf #{path}/#{filename} -C #{object}/ ."
+                else
+                  "tar czf - #{object} | ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} \"dd of=#{path}/#{filename}\""
+                end
               end
     puts command
     _archive_cmd_result = run_command(command)
-    send_to_external_command("docker volume", "archiving #{docker_volume} complete: #{_archive_cmd_result}")
+    send_to_external_command("files/docker volume", "archiving #{object} complete: #{_archive_cmd_result}")
     _chown_chmod_output = chown_chmod(path, filename)
-    send_to_external_command("docker volume", "chmod & chown #{docker_volume}: #{_chown_chmod_output}")
-    remove_old_backups(path, docker_volume)
-    @@QUEUE.delete(docker_volume)
+    send_to_external_command("files/docker volume", "chmod & chown #{object}: #{_chown_chmod_output}")
+    remove_old_backups(path, folder)
+    @@QUEUE.delete(folder)
   end
 
   private def backup_vm_xml(vm_name)
@@ -166,7 +204,7 @@ class BackupCrServer
     command = if @IS_LOCAL
                 "virsh dumpxml #{vm_name} > #{path}/#{filename}"
               else
-                "virsh dumpxml #{vm_name} | ssh -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'cat > #{path}/#{filename}'"
+                "virsh dumpxml #{vm_name} | ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'cat > #{path}/#{filename}'"
               end
     puts command
     _backup_cmd_out = run_command(command)
