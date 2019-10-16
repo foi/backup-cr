@@ -314,10 +314,11 @@ class BackupCrServer
                          "#{@CONFIG["HOST"]}@#{path}/#{backup_file_name}"
                        end
     backup_command = if @IS_LOCAL
-                       "dd if=/dev/#{vg}/#{get_snapshot_name(lv)} bs=#{bs_size} | gzip -#{@CONFIG["GZIP_COMPRESSION_LEVEL"]}cf > #{@CONFIG["PATH"]}/#{backup_file_name}"
+                       "dd if=/dev/#{vg}/#{get_snapshot_name(lv)} bs=#{bs_size} | gzip -#{@CONFIG["GZIP_COMPRESSION_LEVEL"]}cf > #{path}/#{backup_file_name}"
                      else
-                       "dd if=/dev/#{vg}/#{get_snapshot_name(lv)} bs=#{bs_size} | gzip -#{@CONFIG["GZIP_COMPRESSION_LEVEL"]} - | ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} dd of=#{@CONFIG["PATH"]}/#{backup_file_name} bs=#{bs_size}"
+                       "dd if=/dev/#{vg}/#{get_snapshot_name(lv)} bs=#{bs_size} | gzip -#{@CONFIG["GZIP_COMPRESSION_LEVEL"]} - | ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} dd of=#{path}/#{backup_file_name} bs=#{bs_size}"
                      end
+    puts backup_command
     send_to_external_command("archiving to", backup_full_path)
     _backup_output = run_command(backup_command)
     send_to_external_command("backup #{backup_full_path}", _backup_output)
