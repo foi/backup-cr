@@ -211,6 +211,8 @@ class BackupCrServer
     send_to_external_command("vm xml", "#{vm_name} saved: #{_backup_cmd_out}")
     _chown_chmod_output = chown_chmod(path, filename)
     send_to_external_command("vm xml", "chmod & chown #{vm_name}: #{_chown_chmod_output}")
+    send_to_external_command("vm xml", "удаление старых #{vm_name}.vm-xml.")
+    remove_old_backups(path, "#{vm_name}.vm-xml")
   end
 
   private def is_vm_exists(vm_name)
@@ -332,6 +334,8 @@ class BackupCrServer
     _remove_snapshot_output = remove_snapshot(vg, get_snapshot_name(lv))
     @@QUEUE.delete(lv)
     send_to_external_command("removed snapshot", get_snapshot_name(lv))
+    remove_old_backups(path, "#{lv}.lv")
+    send_to_external_command("Произведено удаление старых lv: ", lv)
   end
 
   private def chown_chmod(path, backup_file_name)
