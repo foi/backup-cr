@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang='en' dir='ltr'>
+  <head>
+    <meta charset='utf-8'>
+    <title>BACKUP-CR</title>
+  </head>
+  <script type='text/javascript'>
+    (async () => {
+      const lvmStructure = await fetch('/api/lvm_structure')
+      await fetch('/api/vm_list')
+    })()
+  </script>
+  <body>
+    <div class="main">
+
+    </div>
+  </body>
+</html>

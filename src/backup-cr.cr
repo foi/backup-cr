@@ -76,14 +76,35 @@ class BackupCrServer
   end
 
   def draw_routes
+    get "/api/lvm_structure" do |context, params|
+      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+        context.response.content_type = "application/json"
+        context.response.print get_lvm_structure.to_json
+        context
+      else
+        restrict(context)
+      end
+    end
+
+    get "/api/vm_list" do |context, params|
+      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+        context.response.content_type = "application/json"
+        vm_data = Hash(String, Array(String | Nil) | Array(String)).new
+        get_vm_list.each do |vm|
+          vm_data[vm] = get_vm_disks(vm).not_nil!
+        end
+        context.response.print vm_data.to_json
+        context
+      else
+        restrict(context)
+      end
+    end
+
     get "/" do |context, params|
       if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
-        context.response.content_type = "text/plain"
-        output = {
-          "volume_groups": get_vgs_report,
-          "logical_volumes": get_lvs_report
-        }
-        context.response.print output.to_pretty_json
+        context.response.content_type = "text/html"
+        # https://github.com/crystal-lang/crystal/issues/1649
+        context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
         context
       else
         restrict(context)
@@ -153,7 +174,7 @@ class BackupCrServer
 
   private def backup_folder(object)
     is_docker_volume = true
-    p object
+    #p object
     folder = if (object.includes?("/"))
                is_docker_volume = false
                object.split("/").last
@@ -214,6 +235,21 @@ class BackupCrServer
     send_to_external_command("vm xml", "удаление старых #{vm_name}.vm-xml.")
     remove_old_backups(path, "#{vm_name}.vm-xml")
   end
+
+  #  /<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/.match(f)
+
+   private def get_vm_list
+     run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
+   end
+
+   private def get_vm_disks(vm_name)
+     if disks = /<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/.match(run_command("virsh dumpxml #{vm_name}"))
+       p disks.captures
+       disks.captures
+     else
+       [] of String
+     end
+   end
 
   private def is_vm_exists(vm_name)
     ok = false
@@ -380,6 +416,40 @@ class BackupCrServer
   private def get_lvs_report
     _result = JSON.parse(run_command("lvs --reportformat json").not_nil!)
     _result["report"]? ? _result["report"] : "Error when reading lvs!"
+  end
+
+  private def get_lvm_structure
+    _vgs, _lvs = [run_command("vgs --reportformat json"), run_command("lvs --reportformat json")]
+    _tmp_vgs, _tmp_lvs = [JSON.parse(_vgs), JSON.parse(_lvs)]
+    # IMPORTANT NOT Hash(String, String) | Hash(String, Array(Hash(String, String)) but Hash(String, String | Array(Hash(String, String)))
+    lvm_structure = Hash(String, Hash(String, String | Array(Hash(String, String)))).new
+    if _tmp_vgs && _tmp_lvs && _tmp_vgs["report"]? && _tmp_lvs["report"]?
+      _vgs_with_report, _lvs_with_report = [
+        (Hash(String, Array(Hash(String, Array(Hash(String, String)))))).from_json(_vgs),
+        (Hash(String, Array(Hash(String, Array(Hash(String, String)))))).from_json(_lvs)
+      ]
+      vgs = _vgs_with_report["report"]? && _vgs_with_report["report"][0]? && _vgs_with_report["report"][0]["vg"]? ? _vgs_with_report["report"][0]["vg"] : nil
+      lvs = _lvs_with_report["report"]? && _lvs_with_report["report"][0]? && _lvs_with_report["report"][0]["lv"]? ? _lvs_with_report["report"][0]["lv"] : nil
+      if vgs && lvs
+        vgs.each do |vg|
+          if vg["vg_name"]? && vg["vg_size"]? && vg["vg_free"]? && vg["pv_count"]?
+            finded_lv = lvs.select do |lv|
+              lv["lv_name"]? && lv["vg_name"]? && lv["lv_size"]? && lv["vg_name"] == vg["vg_name"]
+            end
+            lvm_structure[vg["vg_name"]] = {
+              "vg_size" => vg["vg_size"],
+              "vg_free" => vg["vg_free"],
+              "pv_count" => vg["pv_count"],
+              "lvs": finded_lv
+            }
+          end
+        end
+      end
+    end
+    return lvm_structure
+  rescue ex
+    STDERR.puts ex.message
+    nil
   end
 
   private def are_exists_vg_and_lv(vg, lv)
