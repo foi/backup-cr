@@ -4,7 +4,7 @@ development in progress
 
 ## FEATURES
 
-0. single exucatable with no dependencies
+0. single executable with no dependencies
 1. backup files, lvm volumes, docker volumes with configurable gzip compression level
 2. save it to local path or remote path via sshfs and public key auth
 3. ability to custom hook for events
