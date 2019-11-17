@@ -1,6 +1,16 @@
 # backup-cr
 
-TODO: Write a description here
+development in progress
+
+## FEATURES
+
+0. single exucatable with no dependencies
+1. backup files, lvm volumes, docker volumes with configurable gzip compression level
+2. save it to local path or remote path via sshfs and public key auth
+3. ability to custom hook for events
+4. ACL based on ip-adresses
+5. custom backup extension (simple ransomware protection)
+6. config via ENV variables or .env file
 
 ## Installation
 
