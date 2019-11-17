@@ -236,20 +236,15 @@ class BackupCrServer
     remove_old_backups(path, "#{vm_name}.vm-xml")
   end
 
-  #  /<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/.match(f)
+  private def get_vm_list
+   run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
+  end
 
-   private def get_vm_list
-     run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
-   end
-
-   private def get_vm_disks(vm_name)
-     if disks = /<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/.match(run_command("virsh dumpxml #{vm_name}"))
-       p disks.captures
-       disks.captures
-     else
-       [] of String
-     end
-   end
+  private def get_vm_disks(vm_name)
+   results = Array(String).new
+   run_command("virsh dumpxml #{vm_name}").not_nil!.scan(/<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/) { |r| results << r[1].to_s }
+   results
+  end
 
   private def is_vm_exists(vm_name)
     ok = false

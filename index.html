@@ -6,13 +6,30 @@
   </head>
   <script type='text/javascript'>
     (async () => {
-      const lvmStructure = await fetch('/api/lvm_structure')
-      await fetch('/api/vm_list')
+      const lvmStructureRaw = await fetch('/api/lvm_structure')
+      const vmListRaw = await fetch('/api/vm_list')
+      const lvmStructure =  await lvmStructureRaw.json()
+      const vmList = await vmListRaw.json()
+      const vmUl = document.createElement('ul')
+      document.getElementById("vm-list").appendChild(vmUl)
+      Object.keys(vmList).forEach(vm => {
+        const li = document.createElement('li')
+        li.textContent = `${vm}: `
+        vmList[vm].forEach(disk => {
+          const a = document.createElement("a")
+          a.setAttribute('href', `/backup/lv/${disk}`)
+          a.textContent = disk
+          li.appendChild(a)
+        })
+        vmUl.appendChild(li)
+      })
     })()
   </script>
   <body>
-    <div class="main">
+    <div id="main">
+      <div id="vm-list">
 
+      </div>
     </div>
   </body>
 </html>
