@@ -33,7 +33,7 @@ class BackupCrServer
     "BACKUP_CR_BACKUP_ALLOWED_FROM_IPS",
     "BACKUP_CR_DEFAULT_SNAPSHOT_SIZE",
     "BACKUP_CR_DD_BS_SIZE",
-    "BACKUP_CR_COMMAND"
+    "BACKUP_CR_COMMAND",
   ]
 
   def initialize
@@ -41,7 +41,7 @@ class BackupCrServer
 
     if File.exists?(".env")
       puts ".env-file found. Reading config..."
-      File.read(".env").split("\n").map {|e| e.split("=")}.each do |conf_el|
+      File.read(".env").split("\n").map { |e| e.split("=") }.each do |conf_el|
         if @@CONFIG_FIELDS.includes?(conf_el[0])
           @CONFIG[conf_el[0].split("BACKUP_CR_")[1]] = conf_el[1]
         end
@@ -89,9 +89,8 @@ class BackupCrServer
     get "/api/vm_list" do |context, params|
       if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
-        vm_data = Hash(String, Array(String | Nil) | Array(String)).new
-        get_vm_list.each do |vm|
-          vm_data[vm] = get_vm_disks(vm).not_nil!
+        vm_data = get_vm_list.map do |vm|
+          {"vm" => vm, "disks" => get_vm_disks(vm).not_nil!}
         end
         context.response.print vm_data.to_json
         context
@@ -104,7 +103,8 @@ class BackupCrServer
       if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "text/html"
         # https://github.com/crystal-lang/crystal/issues/1649
-        context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
+        # context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
+        context.response.print File.read("index.html")
         context
       else
         restrict(context)
@@ -169,12 +169,12 @@ class BackupCrServer
 
   private def does_this_path_exist?(path)
     ok = Dir.exists?(path)
-    puts "#{path} #{ ok ? "is exist." : "is not exist!"}"
+    puts "#{path} #{ok ? "is exist." : "is not exist!"}"
   end
 
   private def backup_folder(object)
     is_docker_volume = true
-    #p object
+    # p object
     folder = if (object.includes?("/"))
                is_docker_volume = false
                object.split("/").last
@@ -184,9 +184,9 @@ class BackupCrServer
     puts "is docker volume? - #{is_docker_volume}"
     @@QUEUE[folder] = {
       "created_at" => Time.local.to_s,
-      "status" => "Added to queue"
+      "status"     => "Added to queue",
     }
-    filename = "#{folder}.#{ is_docker_volume ? "docker_volume" : "folder" }.#{get_date}.tar.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
+    filename = "#{folder}.#{is_docker_volume ? "docker_volume" : "folder"}.#{get_date}.tar.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
     puts "Forming backup path..."
     path = if is_docker_volume
              @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]? ? @CONFIG["DOCKER_VOLUME_BACKUP_PATH"] : @CONFIG["PATH"]
@@ -237,13 +237,13 @@ class BackupCrServer
   end
 
   private def get_vm_list
-   run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
+    run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
   end
 
   private def get_vm_disks(vm_name)
-   results = Array(String).new
-   run_command("virsh dumpxml #{vm_name}").not_nil!.scan(/<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/) { |r| results << r[1].to_s }
-   results
+    results = Array(String).new
+    run_command("virsh dumpxml #{vm_name}").not_nil!.scan(/<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/) { |r| results << r[1].to_s }
+    results
   end
 
   private def is_vm_exists(vm_name)
@@ -314,7 +314,7 @@ class BackupCrServer
     server = HTTP::Server.new([
       HTTP::ErrorHandler.new,
       HTTP::LogHandler.new,
-      route_handler
+      route_handler,
     ])
     server.bind_tcp(Socket::IPAddress.new(@CONFIG["LISTEN_ON"], @CONFIG["PORT"].to_i32))
     puts "backup-cr is listen on #{@CONFIG["LISTEN_ON"]}:#{@CONFIG["PORT"]}"
@@ -332,7 +332,7 @@ class BackupCrServer
   private def backup_lv(vg, lv)
     @@QUEUE[lv] = {
       "created_at" => Time.local.to_s,
-      "status" => "creating snapshot"
+      "status"     => "creating snapshot",
     }
     _create_snapshot_output = create_snapshot(vg, lv)
     send_to_external_command("created snapshot", get_snapshot_name(lv))
@@ -356,10 +356,10 @@ class BackupCrServer
     _backup_output = run_command(backup_command)
     send_to_external_command("backup #{backup_full_path}", _backup_output)
     chown_chmod_command = if @IS_LOCAL
-                      "chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]} #{path}/#{backup_file_name} && chmod 660 #{path}/#{backup_file_name}"
-                    else
-                      "ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]} #{path}/#{backup_file_name} && chmod 660 #{path}/#{backup_file_name}'"
-                    end
+                            "chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]} #{path}/#{backup_file_name} && chmod 660 #{path}/#{backup_file_name}"
+                          else
+                            "ssh -o \"StrictHostKeyChecking no\" -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]} #{path}/#{backup_file_name} && chmod 660 #{path}/#{backup_file_name}'"
+                          end
     _chown_output = run_command(chown_chmod_command)
     send_to_external_command("chmod 660 && chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]}", "#{backup_full_path}, #{_chown_output}")
     _remove_snapshot_output = remove_snapshot(vg, get_snapshot_name(lv))
@@ -383,7 +383,7 @@ class BackupCrServer
   end
 
   private def create_snapshot(vg, lv)
-    create_snapshot_result = run_command("lvcreate --size #{ @CONFIG["BACKUP_CR_DEFAULT_SNAPSHOT_SIZE"]? ? @CONFIG["BACKUP_CR_DEFAULT_SNAPSHOT_SIZE"] : "4G" } --snapshot --name #{get_snapshot_name(lv)} /dev/#{vg}/#{lv}")
+    create_snapshot_result = run_command("lvcreate --size #{@CONFIG["BACKUP_CR_DEFAULT_SNAPSHOT_SIZE"]? ? @CONFIG["BACKUP_CR_DEFAULT_SNAPSHOT_SIZE"] : "4G"} --snapshot --name #{get_snapshot_name(lv)} /dev/#{vg}/#{lv}")
     puts create_snapshot_result
     return create_snapshot_result
   end
@@ -421,7 +421,7 @@ class BackupCrServer
     if _tmp_vgs && _tmp_lvs && _tmp_vgs["report"]? && _tmp_lvs["report"]?
       _vgs_with_report, _lvs_with_report = [
         (Hash(String, Array(Hash(String, Array(Hash(String, String)))))).from_json(_vgs),
-        (Hash(String, Array(Hash(String, Array(Hash(String, String)))))).from_json(_lvs)
+        (Hash(String, Array(Hash(String, Array(Hash(String, String)))))).from_json(_lvs),
       ]
       vgs = _vgs_with_report["report"]? && _vgs_with_report["report"][0]? && _vgs_with_report["report"][0]["vg"]? ? _vgs_with_report["report"][0]["vg"] : nil
       lvs = _lvs_with_report["report"]? && _lvs_with_report["report"][0]? && _lvs_with_report["report"][0]["lv"]? ? _lvs_with_report["report"][0]["lv"] : nil
@@ -432,10 +432,10 @@ class BackupCrServer
               lv["lv_name"]? && lv["vg_name"]? && lv["lv_size"]? && lv["vg_name"] == vg["vg_name"]
             end
             lvm_structure[vg["vg_name"]] = {
-              "vg_size" => vg["vg_size"],
-              "vg_free" => vg["vg_free"],
+              "vg_size"  => vg["vg_size"],
+              "vg_free"  => vg["vg_free"],
               "pv_count" => vg["pv_count"],
-              "lvs": finded_lv
+              "lvs":        finded_lv,
             }
           end
         end
@@ -457,23 +457,23 @@ class BackupCrServer
       _lvs_json = JSON.parse(_lvs_output.not_nil!)
       if _lvs_json["report"]?
         if _lvs_json["report"].as_a?
-           if _lvs_json["report"].as_a[0]? && _lvs_json["report"].as_a[0]["lv"]? && _lvs_json["report"].as_a[0]["lv"].as_a? && _lvs_json["report"].as_a[0]["lv"].as_a.size > 0
-             lvs = _lvs_json["report"].as_a[0]["lv"].as_a
-             lv_names = lvs.map do |lv|
-               lv.as_h? && lv.as_h["lv_name"]? && lv.as_h["lv_name"].as_s? ? lv.as_h["lv_name"].as_s : ""
-             end
-             if lv_names.includes?(lv)
-               result = "ok"
-             else
-               result = "#{lv} is not found in #{vg}"
-             end
-           else
-             result = "Error - not found any lv in #{vg}"
-           end
+          if _lvs_json["report"].as_a[0]? && _lvs_json["report"].as_a[0]["lv"]? && _lvs_json["report"].as_a[0]["lv"].as_a? && _lvs_json["report"].as_a[0]["lv"].as_a.size > 0
+            lvs = _lvs_json["report"].as_a[0]["lv"].as_a
+            lv_names = lvs.map do |lv|
+              lv.as_h? && lv.as_h["lv_name"]? && lv.as_h["lv_name"].as_s? ? lv.as_h["lv_name"].as_s : ""
+            end
+            if lv_names.includes?(lv)
+              result = "ok"
+            else
+              result = "#{lv} is not found in #{vg}"
+            end
+          else
+            result = "Error - not found any lv in #{vg}"
+          end
         end
       else
-         result = "Error when find logical volume #{lv}"
-       end
+        result = "Error when find logical volume #{lv}"
+      end
     end
     return result
   end
@@ -504,7 +504,6 @@ class BackupCrServer
     @@io.clear
     result
   end
-
 end
 
 s = BackupCrServer.new
