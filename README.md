@@ -32,9 +32,10 @@ development in progress
 
 TODO: Write usage instructions here
 
-## Development
+## TODO
 
-TODO: Write development instructions here
+* Should work without lvm
+* web ui
 
 ## Contributing
 
