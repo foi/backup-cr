@@ -1,8 +1,8 @@
 # Hack to prevent a segfault for static linking
-{% if flag?(:static) %}
-  require "llvm/lib_llvm"
-  require "llvm/enums"
-{% end %}
+#{% if flag?(:static) %}
+#  require "llvm/lib_llvm"
+#  require "llvm/enums"
+#{% end %}
 
 require "router"
 require "json"
