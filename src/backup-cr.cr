@@ -268,7 +268,8 @@ class BackupCrServer
   end
 
   private def get_ip(context)
-    context.request.remote_address.not_nil!.split(":")[0]
+    remote_address_raw = context.request.remote_address
+    return remote_address_raw.is_a?(Socket::IPAddress) ? remote_address_raw.address : "127.0.0.1"
   end
 
   private def restrict(context : HTTP::Server::Context)
