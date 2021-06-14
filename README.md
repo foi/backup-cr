@@ -1,4 +1,4 @@
-# backup-cr
+# backup-cr ![static build x86_84](https://github.com/foi/backup-cr/actions/workflows/ci.yml/badge.svg)
 
 development in progress
 
