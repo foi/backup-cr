@@ -10,5 +10,7 @@ jobs:
     steps:
       - name: Download source
         uses: actions/checkout@v2
+      - name: Install shards
+        run: shards update --ignore-crystal-version
       - name: Build
         run: crystal build --static src/backup-cr.cr
