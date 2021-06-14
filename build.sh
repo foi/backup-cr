@@ -21,4 +21,4 @@ echo "Creating rpm package..."
 docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t rpm -C /app/dist/tmp --name backup-cr --version $date --iteration 1 --after-install /app/etc/post-install.sh --description "Agile lvm volumes backup system" .
 echo "Creating deb package..."
 docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t deb -C /app/dist/tmp --name backup-cr --version $date --iteration 1 --after-install /app/etc/post-install.sh --description "Agile lvm volumes backup system" --deb-no-default-config-files .
-echo "Packages has been successfully builds"
+echo "Packages have been successfully builds"
