@@ -136,7 +136,7 @@ class BackupCrServer
       puts "Got backup vm-xml #{params} from #{ip}"
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && is_vm_exists(params["vm_name"])
       perform_response(context, "text/plain", "ok", "vm-xml: #{params["vm_name"]}", condition) do
-        backup_vm_xml(params["vm_name"])
+        backup_vm_xml(params["vm_name"], get_keep_versions_count(context.request.query_params))
       end
     end
 
@@ -145,7 +145,7 @@ class BackupCrServer
       puts "Got lv backup #{params} from #{ip}"
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && are_exists_vg_and_lv(params["vg"], params["volume"]) == "ok"
       perform_response(context, "text/plain", "queued", "lvm volume: #{params["volume"]}", condition) do
-        spawn backup_lv(params["vg"], params["volume"])
+        spawn backup_lv(params["vg"], params["volume"], get_keep_versions_count(context.request.query_params))
       end
     end
 
@@ -154,16 +154,25 @@ class BackupCrServer
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && @@docker && is_docker_volume_exists(params["docker_volume"])
       puts condition
       perform_response(context, "text/plain", "queued", "docker volume: #{params["docker_volume"]}", condition) do
-        spawn backup_folder(params["docker_volume"])
+        spawn backup_folder(params["docker_volume"], get_keep_versions_count(context.request.query_params))
       end
     end
 
     get "/backup/files/" do |context, params|
       ip = get_ip(context)
       condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"])
+      p context.request.query_params
       perform_response(context, "text/plain", "queued", "folder: #{context.request.query_params["path"]}", condition) do
-        spawn backup_folder(context.request.query_params["path"])
+        spawn backup_folder(context.request.query_params["path"], get_keep_versions_count(context.request.query_params))
       end
+    end
+  end
+
+  private def get_keep_versions_count(query_params) : Int32
+    if query_params.has_key?("keep_versions_count") && query_params["keep_versions_count"].to_i?
+      return query_params["keep_versions_count"].to_i
+    else
+      return @CONFIG["KEEP_VERSIONS_COUNT"].to_i
     end
   end
 
@@ -172,7 +181,7 @@ class BackupCrServer
     puts "#{path} #{ok ? "is exist." : "is not exist!"}"
   end
 
-  private def backup_folder(object)
+  private def backup_folder(object, keep_versions_count)
     is_docker_volume = true
     # p object
     folder = if (object.includes?("/"))
@@ -215,11 +224,11 @@ class BackupCrServer
     send_to_external_command("files/docker volume", "archiving #{object} complete: #{_archive_cmd_result}")
     _chown_chmod_output = chown_chmod(path, filename)
     send_to_external_command("files/docker volume", "chmod & chown #{object}: #{_chown_chmod_output}")
-    remove_old_backups(path, folder)
+    remove_old_backups(path, folder, keep_versions_count)
     @@QUEUE.delete(folder)
   end
 
-  private def backup_vm_xml(vm_name)
+  private def backup_vm_xml(vm_name, keep_versions_count)
     filename = "#{vm_name}.vm-xml.#{get_date}.xml.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
     path = @CONFIG["VM_BACKUP_PATH"]? ? @CONFIG["VM_BACKUP_PATH"] : @CONFIG["PATH"]
     command = if @IS_LOCAL
@@ -233,7 +242,7 @@ class BackupCrServer
     _chown_chmod_output = chown_chmod(path, filename)
     send_to_external_command("vm xml", "chmod & chown #{vm_name}: #{_chown_chmod_output}")
     send_to_external_command("vm xml", "удаление старых #{vm_name}.vm-xml.")
-    remove_old_backups(path, "#{vm_name}.vm-xml")
+    remove_old_backups(path, "#{vm_name}.vm-xml", keep_versions_count)
   end
 
   private def get_vm_list
@@ -330,7 +339,7 @@ class BackupCrServer
     Time.local.to_s("%F")
   end
 
-  private def backup_lv(vg, lv)
+  private def backup_lv(vg, lv, keep_versions_count)
     @@QUEUE[lv] = {
       "created_at" => Time.local.to_s,
       "status"     => "creating snapshot",
@@ -366,7 +375,7 @@ class BackupCrServer
     _remove_snapshot_output = remove_snapshot(vg, get_snapshot_name(lv))
     @@QUEUE.delete(lv)
     send_to_external_command("removed snapshot", get_snapshot_name(lv))
-    remove_old_backups(path, "#{lv}.lv")
+    remove_old_backups(path, "#{lv}.lv", keep_versions_count)
     send_to_external_command("Произведено удаление старых lv: ", lv)
   end
 
@@ -479,12 +488,12 @@ class BackupCrServer
     return result
   end
 
-  private def remove_old_backups(path, filename_template)
+  private def remove_old_backups(path, filename_template, keep_versions_count)
     puts "Find in #{path} by template #{filename_template} old backups"
     old_backups = if @IS_LOCAL
-                    run_command("ls -t #{path} | grep #{filename_template}").split("\n").skip(@CONFIG["KEEP_VERSIONS_COUNT"].to_i)
+                    run_command("ls -t #{path} | grep #{filename_template}").split("\n").skip(keep_versions_count)
                   else
-                    run_command("ssh -i id_rsa -o \"StrictHostKeyChecking no\" #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'ls -t #{path} | grep #{filename_template}'").split("\n").skip(@CONFIG["KEEP_VERSIONS_COUNT"].to_i)
+                    run_command("ssh -i id_rsa -o \"StrictHostKeyChecking no\" #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'ls -t #{path} | grep #{filename_template}'").split("\n").skip(keep_versions_count)
                   end
     if old_backups.size > 0
       puts "It will be deleted #{old_backups.join(", ")}"
