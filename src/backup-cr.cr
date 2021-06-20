@@ -159,8 +159,10 @@ class BackupCrServer
 
     get "/backup/files/" do |context, params|
       ip = get_ip(context)
-      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"])
-      p context.request.query_params
+      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"]) && Dir.entries(context.request.query_params["path"]).size > 2
+      if Dir.entries(context.request.query_params["path"]).size == 2
+        send_to_external_command("backup-files", "#{context.request.query_params["path"]} is empty. Backup is stopped.")
+      end
       perform_response(context, "text/plain", "queued", "folder: #{context.request.query_params["path"]}", condition) do
         spawn backup_folder(context.request.query_params["path"], get_keep_versions_count(context.request.query_params))
       end
