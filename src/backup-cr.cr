@@ -29,8 +29,7 @@ class BackupCrServer
     "BACKUP_CR_GZIP_COMPRESSION_LEVEL",
     "BACKUP_CR_KEEP_VERSIONS_COUNT",
     "BACKUP_CR_BACKUP_FILE_EXTENSION",
-    "BACKUP_CR_STATS_ALLOWED_FROM_IPS",
-    "BACKUP_CR_BACKUP_ALLOWED_FROM_IPS",
+    "BACKUP_CR_ALLOWED_FROM_IPS",
     "BACKUP_CR_DEFAULT_SNAPSHOT_SIZE",
     "BACKUP_CR_DD_BS_SIZE",
     "BACKUP_CR_COMMAND",
@@ -77,7 +76,7 @@ class BackupCrServer
 
   def draw_routes
     get "/api/lvm_structure" do |context, params|
-      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
         context.response.print get_lvm_structure.to_json
         context
@@ -87,7 +86,7 @@ class BackupCrServer
     end
 
     get "/api/vm_list" do |context, params|
-      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
         vm_data = get_vm_list.map do |vm|
           {"vm" => vm, "disks" => get_vm_disks(vm).not_nil!}
@@ -100,7 +99,7 @@ class BackupCrServer
     end
 
     get "/" do |context, params|
-      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "text/html"
         # https://github.com/crystal-lang/crystal/issues/1649
         # context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
@@ -112,7 +111,7 @@ class BackupCrServer
     end
 
     get "/statuses.json" do |context, params|
-      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
         context.response.print @@QUEUE.to_json
         context
@@ -122,7 +121,7 @@ class BackupCrServer
     end
 
     get "/status/:volume" do |context, params|
-      if @CONFIG["STATS_ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "text/plain"
         context.response.print @@QUEUE[params["volume"]]? && @@QUEUE[params["volume"]]["status"]? ? @@QUEUE[params["volume"]]["status"] : "OK"
         context
@@ -134,7 +133,7 @@ class BackupCrServer
     get "/backup/vm-xml/:vm_name" do |context, params|
       ip = get_ip(context)
       puts "Got backup vm-xml #{params} from #{ip}"
-      condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && is_vm_exists(params["vm_name"])
+      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && is_vm_exists(params["vm_name"])
       perform_response(context, "text/plain", "ok", "vm-xml: #{params["vm_name"]}", condition) do
         backup_vm_xml(params["vm_name"], get_keep_versions_count(context.request.query_params))
       end
@@ -143,7 +142,7 @@ class BackupCrServer
     get "/backup/lv/:vg/:volume" do |context, params|
       ip = get_ip(context)
       puts "Got lv backup #{params} from #{ip}"
-      condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && are_exists_vg_and_lv(params["vg"], params["volume"]) == "ok"
+      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && are_exists_vg_and_lv(params["vg"], params["volume"]) == "ok"
       perform_response(context, "text/plain", "queued", "lvm volume: #{params["volume"]}", condition) do
         spawn backup_lv(params["vg"], params["volume"], get_keep_versions_count(context.request.query_params))
       end
@@ -151,7 +150,7 @@ class BackupCrServer
 
     get "/backup/docker-volume/:docker_volume" do |context, params|
       ip = get_ip(context)
-      condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && @@docker && is_docker_volume_exists(params["docker_volume"])
+      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && @@docker && is_docker_volume_exists(params["docker_volume"])
       puts condition
       perform_response(context, "text/plain", "queued", "docker volume: #{params["docker_volume"]}", condition) do
         spawn backup_folder(params["docker_volume"], get_keep_versions_count(context.request.query_params))
@@ -160,7 +159,7 @@ class BackupCrServer
 
     get "/backup/files/" do |context, params|
       ip = get_ip(context)
-      condition = @CONFIG["BACKUP_ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"])
+      condition = @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(ip) && context.request.query_params["path"]? && Dir.exists?(context.request.query_params["path"])
       p context.request.query_params
       perform_response(context, "text/plain", "queued", "folder: #{context.request.query_params["path"]}", condition) do
         spawn backup_folder(context.request.query_params["path"], get_keep_versions_count(context.request.query_params))
