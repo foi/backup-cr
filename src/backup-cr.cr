@@ -102,7 +102,7 @@ class BackupCrServer
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "text/html"
         # https://github.com/crystal-lang/crystal/issues/1649
-        # context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
+        #context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
         context.response.print File.read("index.html")
         context
       else
@@ -490,7 +490,7 @@ class BackupCrServer
   end
 
   private def remove_old_backups(path, filename_template, keep_versions_count)
-    puts "Find in #{path} by template #{filename_template} old backups"
+    puts "Find in #{path} by template #{filename_template} old backups, keeps up to #{keep_versions_count} versions"
     old_backups = if @IS_LOCAL
                     run_command("ls -t #{path} | grep #{filename_template}").split("\n").skip(keep_versions_count)
                   else

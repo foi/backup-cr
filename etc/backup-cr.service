@@ -7,7 +7,7 @@ WorkingDirectory=/opt/backup-cr
 EnvironmentFile=/opt/backup-cr/custom.env
 ExecStart=/bin/bash -c '/opt/backup-cr/backup-cr'
 RestartSec=10s
-Restart=always
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
