@@ -15,13 +15,13 @@
 
   <body>
     <div id="app">
+      <h5>VM LIST</h5>
       <div id="vm-list">
         <template v-for="vm in vmList" v-if="vmList.length > 0">
           <h4>{{ vm.vm }}</h4>
           <ul>
             <li v-for="disk in vm.disks">
-              <!-- {{ d = lvmStructure.lvs.find(lvs => lvs.vg_name === disk.split("/")[0] && lvs.lv_name === disk.split("/")[1]]) }}
-              {{ disk }}: {{ d }} -->
+              {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }}
             </li>
           </ul>
         </template>
@@ -42,6 +42,12 @@
           return {
             vmList: [],
             lvmStructure: []
+          }
+        },
+        methods: {
+          getLvSize (vg, lv) {
+            const d = this.lvmStructure[vg].lvs.find(lvs => lvs.vg_name === vg && lvs.lv_name === lv)
+            return d["lv_size"]
           }
         }
       })
