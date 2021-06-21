@@ -75,6 +75,32 @@ class BackupCrServer
   end
 
   def draw_routes
+    get "/api/get_paths" do |context, params|
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+        context.response.content_type = "application/json"
+        paths =  {
+          "DEFAULT_PATH" => @CONFIG["PATH"]?,
+          "DOCKER_VOLUME_BACKUP_PATH" => @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]?,
+          "FILES_BACKUP_PATH" => @CONFIG["FILES_BACKUP_PATH"]?,
+          "VM_BACKUP_PATH" => @CONFIG["VM_BACKUP_PATH"]?,
+        }
+        context.response.print paths.to_json
+        context
+      else
+        restrict(context)
+      end
+    end
+
+    get "/api/files_in/default_path" do |context, params|
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+        context.response.content_type = "application/json"
+        context.response.print get_files_in_path(@CONFIG["PATH"]).to_json
+        context
+      else
+        restrict(context)
+      end
+    end
+
     get "/api/lvm_structure" do |context, params|
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
@@ -192,9 +218,9 @@ class BackupCrServer
                object
              end
     puts "is docker volume? - #{is_docker_volume}"
-    @@QUEUE[folder] = {
+    @@QUEUE[object] = {
       "created_at" => Time.local.to_s,
-      "status"     => "Added to queue",
+      "status"     => "queued",
     }
     filename = "#{folder}.#{is_docker_volume ? "docker_volume" : "folder"}.#{get_date}.tar.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
     puts "Forming backup path..."
@@ -203,9 +229,8 @@ class BackupCrServer
            else
              @CONFIG["FILES_BACKUP_PATH"]? ? @CONFIG["FILES_BACKUP_PATH"] : @CONFIG["PATH"]
            end
-
     send_to_external_command(object, "start archiving: #{object}")
-    @@QUEUE[folder]["status"] = "archiving"
+    @@QUEUE[object]["status"] = "archiving"
     puts "Forming command for backup..."
     command = if is_docker_volume
                 if @IS_LOCAL
@@ -341,13 +366,14 @@ class BackupCrServer
   end
 
   private def backup_lv(vg, lv, keep_versions_count)
-    @@QUEUE[lv] = {
+    vglv = "#{vg}/#{lv}"
+    @@QUEUE[vglv] = {
       "created_at" => Time.local.to_s,
       "status"     => "creating snapshot",
     }
     _create_snapshot_output = create_snapshot(vg, lv)
     send_to_external_command("created snapshot", get_snapshot_name(lv))
-    @@QUEUE[lv]["status"] = "archiving"
+    @@QUEUE[vglv]["status"] = "archiving"
     date = get_date
     backup_file_name = "#{lv}.lv.#{date}.gz.#{@CONFIG["BACKUP_FILE_EXTENSION"]}"
     bs_size = @CONFIG["DD_BS_SIZE"]? ? @CONFIG["DD_BS_SIZE"] : "8M"
@@ -422,6 +448,25 @@ class BackupCrServer
   private def get_lvs_report
     _result = JSON.parse(run_command("lvs --reportformat json").not_nil!)
     _result["report"]? ? _result["report"] : "Error when reading lvs!"
+  end
+
+  private def get_files_in_path(path)
+    files = Dir.entries(path).reject {|e| e == "." || e == ".."}
+    if files.size > 0
+      files.map do |f|
+        file_info = Hash(String, String | Nil).new
+        file_info = { "modification_time" => nil, "name" => f, "size" => nil }
+        if fi = File.info("#{path}/#{f}")
+          puts fi
+          file_info["modification_time"] = fi.modification_time.to_local.to_s
+          file_info["name"] = f
+          file_info["size"] = fi.size.to_s
+        end
+        file_info
+      end
+    else
+      return [] of String
+    end
   end
 
   private def get_lvm_structure

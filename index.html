@@ -15,17 +15,25 @@
 
   <body>
     <div id="app">
-      <h5>VM LIST</h5>
+      <h4>VMs LIST</h4>
       <div id="vm-list">
         <template v-for="vm in vmList" v-if="vmList.length > 0">
-          <h4>{{ vm.vm }}</h4>
+          <h5>{{ vm.vm }}</h5>
           <ul>
             <li v-for="disk in vm.disks">
-              {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }}
+              {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }} <a href="#" @click="backupLv(disk)" v-if="!statuses[disk]"> - backup!</a><i v-if="statuses[disk]"> - pending...</i>
             </li>
           </ul>
         </template>
       </div>
+      <h4>PATHS</h4>
+      <template v-for="(value, name) in paths">
+        <h5>{{ name }} {{ value }}</h5>
+        <ul v-if="value">
+          
+        </ul>
+      </template>
+      {{ statuses }}
     </div>
     <script type='text/javascript'>
       const backupCr = new Vue({
@@ -34,19 +42,42 @@
           this.$nextTick(async () => {
             const lvmStructureRaw = await fetch('/api/lvm_structure')
             const vmListRaw = await fetch('/api/vm_list')
+            const pathsRaw = await fetch('/api/get_paths')
             this.$data.lvmStructure =  await lvmStructureRaw.json()
             this.$data.vmList = await vmListRaw.json()
+            this.$data.paths = await pathsRaw.json()
+            this.$data.getStatusesInterval = setInterval(() => {
+              this.getStatuses()
+            }, 500)
           })
         },
         data() {
           return {
             vmList: [],
-            lvmStructure: []
+            lvmStructure: [],
+            getStatusesInterval: null,
+            statuses: {},
+            paths: {}
           }
+        },
+        beforeDestroy(){
+          clearInterval(this.$data.getStatusesInterval)
         },
         methods: {
           getLvSize (vg, lv) {
             return this.lvmStructure[vg] && this.lvmStructure[vg].lvs && this.lvmStructure[vg].lvs.find(lvs => lvs.vg_name === vg && lvs.lv_name === lv) ? this.lvmStructure[vg].lvs.find(lvs => lvs.vg_name === vg && lvs.lv_name === lv)["lv_size"] : `VG '${vg}' and/or LV '${lv}' are not found!`
+          },
+          async backupLv(disk) {
+            const _b = await fetch(`/backup/lv/${disk}`)
+            const status = await _b.text()
+            console.log(status)
+          },
+          async getStatuses(){
+            const _b = await fetch(`/statuses.json`)
+            this.$data.statuses = await _b.json()
+          },
+          async getFilesInPath (path) {
+
           }
         }
       })
