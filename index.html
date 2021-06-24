@@ -29,8 +29,8 @@
       <h4>PATHS</h4>
       <template v-for="(value, name) in paths">
         <h5>{{ name }} {{ value }}</h5>
-        <ul v-if="value">
-          
+        <ul v-if="filesInPaths[name] && filesInPaths[name].length > 0">
+          <li v-for="f in filesInPaths[name]">{{ f.name }} - {{ f.size }}- {{ f.modification_time }}</li>
         </ul>
       </template>
       {{ statuses }}
@@ -49,6 +49,9 @@
             this.$data.getStatusesInterval = setInterval(() => {
               this.getStatuses()
             }, 500)
+            this.$data.getFilesInPathInterval = setInterval(() => {
+              Object.keys(this.$data.paths).forEach(p => this.getFilesInPath(p))
+            }, 10000)
           })
         },
         data() {
@@ -56,12 +59,15 @@
             vmList: [],
             lvmStructure: [],
             getStatusesInterval: null,
+            getFilesInPathInterval: null,
             statuses: {},
-            paths: {}
+            paths: {},
+            filesInPaths: {}
           }
         },
         beforeDestroy(){
           clearInterval(this.$data.getStatusesInterval)
+          clearInterval(this.$data.getFilesInPathInterval)
         },
         methods: {
           getLvSize (vg, lv) {
@@ -77,7 +83,14 @@
             this.$data.statuses = await _b.json()
           },
           async getFilesInPath (path) {
-
+            try {
+              const response = await fetch(`/api/files_in/${path}`)
+              if (response.status === 200) {
+                this.$data.filesInPaths[path] = await response.json()
+              }
+            } catch (e) {
+              console.error(e.message, await response.text())
+            }
           }
         }
       })

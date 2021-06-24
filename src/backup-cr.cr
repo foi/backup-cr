@@ -35,6 +35,8 @@ class BackupCrServer
     "BACKUP_CR_COMMAND",
   ]
 
+  @@PATHS = Hash(String, String | Nil).new
+
   def initialize
     @CONFIG = Hash(String, String).new
 
@@ -62,7 +64,15 @@ class BackupCrServer
     check_executables
     check_group(@CONFIG["GROUP"])
     check_user(@CONFIG["USER"], @CONFIG["GROUP"])
+    init_paths
     send_to_external_command("backup-cr started", "#{Time.local}")
+  end
+
+  private def init_paths
+    @@PATHS["PATH"] = @CONFIG["PATH"]?
+    @@PATHS["DOCKER_VOLUME_BACKUP_PATH"] = @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]?
+    @@PATHS["FILES_BACKUP_PATH"] = @CONFIG["FILES_BACKUP_PATH"]?
+    @@PATHS["VM_BACKUP_PATH"] = @CONFIG["VM_BACKUP_PATH"]?
   end
 
   private def check_id_rsa
@@ -78,24 +88,30 @@ class BackupCrServer
     get "/api/get_paths" do |context, params|
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
-        paths =  {
-          "DEFAULT_PATH" => @CONFIG["PATH"]?,
-          "DOCKER_VOLUME_BACKUP_PATH" => @CONFIG["DOCKER_VOLUME_BACKUP_PATH"]?,
-          "FILES_BACKUP_PATH" => @CONFIG["FILES_BACKUP_PATH"]?,
-          "VM_BACKUP_PATH" => @CONFIG["VM_BACKUP_PATH"]?,
-        }
-        context.response.print paths.to_json
+        context.response.print @@PATHS.to_json
         context
       else
         restrict(context)
       end
     end
 
-    get "/api/files_in/default_path" do |context, params|
+    get "/api/files_in/:pathname" do |context, params|
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
-        context.response.content_type = "application/json"
-        context.response.print get_files_in_path(@CONFIG["PATH"]).to_json
-        context
+        if @@PATHS[params["pathname"]]?.nil?
+          context.response.status_code = 500
+          context.response.print "#{params["pathname"]} is not found"
+          context
+        else
+          begin
+            context.response.content_type = "application/json"
+            context.response.print get_files_in_path(@@PATHS[params["pathname"]].not_nil!).to_json
+          rescue ex
+            STDERR.puts ex.message
+            context.response.status_code = 500
+            context.response.print ex.message
+          end
+          context
+        end
       else
         restrict(context)
       end
@@ -450,22 +466,36 @@ class BackupCrServer
     _result["report"]? ? _result["report"] : "Error when reading lvs!"
   end
 
-  private def get_files_in_path(path)
-    files = Dir.entries(path).reject {|e| e == "." || e == ".."}
-    if files.size > 0
-      files.map do |f|
-        file_info = Hash(String, String | Nil).new
-        file_info = { "modification_time" => nil, "name" => f, "size" => nil }
-        if fi = File.info("#{path}/#{f}")
-          puts fi
-          file_info["modification_time"] = fi.modification_time.to_local.to_s
-          file_info["name"] = f
-          file_info["size"] = fi.size.to_s
+  private def get_files_in_path(path : String)
+    if @CONFIG["HOST"]
+      puts path
+      raw_files = run_command("ssh -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'stat -c '%y,%n,%s' #{path}/* | grep #{@CONFIG["BACKUP_FILE_EXTENSION"]}'")
+      puts raw_files
+      files_data = raw_files.split("\n").reject {|f| f == ""}.map {|e| e.split(",")}
+      if files_data.size > 0
+        files_data.map do |e|
+          { "modification_time" => e[0], "name" => e[1], "size" => e[2].to_i64.humanize }
         end
-        file_info
+      else
+        return [] of String
       end
     else
-      return [] of String
+      files = Dir.entries(path).reject {|e| e == "." || e == ".."}
+      if files.size > 0
+        files.map do |f|
+          file_info = Hash(String, String | Nil).new
+          file_info = { "modification_time" => nil, "name" => f, "size" => nil }
+          if fi = File.info("#{path}/#{f}")
+            puts fi
+            file_info["modification_time"] = fi.modification_time.to_local.to_s
+            file_info["name"] = f
+            file_info["size"] = fi.size.to_s
+          end
+          file_info
+        end
+      else
+        return [] of String
+      end
     end
   end
 
@@ -560,6 +590,7 @@ class BackupCrServer
     @@io.clear
     result
   end
+
 end
 
 s = BackupCrServer.new
