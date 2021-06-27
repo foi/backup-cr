@@ -28,9 +28,9 @@
       </div>
       <h4>PATHS</h4>
       <template v-for="(value, name) in paths">
-        <h5>{{ name }} {{ value }}</h5>
+        <h5>{{ name }} {{ value }} <a href="#" @click="getFilesInPath(name)">[get files list]</a></h5>
         <ul v-if="filesInPaths[name] && filesInPaths[name].length > 0">
-          <li v-for="f in filesInPaths[name]">{{ f.name }} - {{ f.size }}- {{ f.modification_time }}</li>
+          <li v-for="f in filesInPaths[name]">{{ formatFilename(f.name) }} - {{ f.size }} - {{ formatDateTime(f.modification_time) }}</li>
         </ul>
       </template>
       {{ statuses }}
@@ -49,9 +49,9 @@
             this.$data.getStatusesInterval = setInterval(() => {
               this.getStatuses()
             }, 500)
-            this.$data.getFilesInPathInterval = setInterval(() => {
-              Object.keys(this.$data.paths).forEach(p => this.getFilesInPath(p))
-            }, 10000)
+            // this.$data.getFilesInPathInterval = setInterval(() => {
+            //   Object.keys(this.$data.paths).forEach(p => this.getFilesInPath(p))
+            // }, 10000)
           })
         },
         data() {
@@ -91,6 +91,14 @@
             } catch (e) {
               console.error(e.message, await response.text())
             }
+          },
+          formatDateTime(rawDateTime){
+            const date = new Date(rawDateTime)
+            return `${date.getDay()}.${date.getMonth()}.${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}`
+          },
+          formatFilename(absPath){
+            const s = absPath.split("/")
+            return s[s.length - 1]
           }
         }
       })
