@@ -406,7 +406,7 @@ class BackupCrServer
     _chown_output = run_command(chown_chmod_command)
     send_to_external_command("chmod 660 && chown #{@CONFIG["USER"]}:#{@CONFIG["GROUP"]}", "#{backup_full_path}, #{_chown_output}")
     _remove_snapshot_output = remove_snapshot(vg, get_snapshot_name(lv))
-    @@QUEUE.delete(lv)
+    @@QUEUE.delete(vglv)
     send_to_external_command("removed snapshot", get_snapshot_name(lv))
     remove_old_backups(path, "#{lv}.lv", keep_versions_count)
     send_to_external_command("Произведено удаление старых lv: ", lv)
@@ -457,7 +457,7 @@ class BackupCrServer
   end
 
   private def get_files_in_path(path : String)
-    if @CONFIG["HOST"]
+    if @CONFIG.has_key?("HOST")
       puts path
       raw_files = run_command("ssh -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'stat -c '%y,%n,%s' #{path}/* | grep #{@CONFIG["BACKUP_FILE_EXTENSION"]}'")
       puts raw_files
@@ -470,16 +470,15 @@ class BackupCrServer
         return [] of String
       end
     else
-      files = Dir.entries(path).reject {|e| e == "." || e == ".."}
+      files = Dir.glob("#{path}/*.#{@CONFIG["BACKUP_FILE_EXTENSION"]}")
       if files.size > 0
         files.map do |f|
           file_info = Hash(String, String | Nil).new
           file_info = { "modification_time" => nil, "name" => f, "size" => nil }
-          if fi = File.info("#{path}/#{f}")
-            puts fi
+          if fi = File.info("#{f}")
             file_info["modification_time"] = fi.modification_time.to_local.to_s
             file_info["name"] = f
-            file_info["size"] = fi.size.to_s
+            file_info["size"] = fi.size.humanize
           end
           file_info
         end

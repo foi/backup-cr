@@ -15,13 +15,18 @@
 
   <body>
     <div id="app">
+      <h4>Keep  versions:</h4>
+      <template v-for="i in ['default',2,3,4,5,6,7]">
+        <input type="radio" v-bind:value="i" v-model="keepVersions">
+        <label v-bind:for="i">{{ i }}</label>
+      </template>
       <h4>VMs LIST</h4>
       <div id="vm-list">
         <template v-for="vm in vmList" v-if="vmList.length > 0">
           <h5>{{ vm.vm }}</h5>
           <ul>
             <li v-for="disk in vm.disks">
-              {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }} <a href="#" @click="backupLv(disk)" v-if="!statuses[disk]"> - backup!</a><i v-if="statuses[disk]"> - pending...</i>
+              {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }} - <a href="#" @click="backupLv(disk)" v-if="!statuses[disk]">backup! {{ keepVersions == 'default'  ? '' :  '(' + keepVersions + ' versions will be saved)' }}</a><i v-if="statuses[disk]"> pending...</i>
             </li>
           </ul>
         </template>
@@ -49,9 +54,6 @@
             this.$data.getStatusesInterval = setInterval(() => {
               this.getStatuses()
             }, 500)
-            // this.$data.getFilesInPathInterval = setInterval(() => {
-            //   Object.keys(this.$data.paths).forEach(p => this.getFilesInPath(p))
-            // }, 10000)
           })
         },
         data() {
@@ -59,22 +61,21 @@
             vmList: [],
             lvmStructure: [],
             getStatusesInterval: null,
-            getFilesInPathInterval: null,
             statuses: {},
             paths: {},
-            filesInPaths: {}
+            filesInPaths: {},
+            keepVersions: 'default'
           }
         },
         beforeDestroy(){
           clearInterval(this.$data.getStatusesInterval)
-          clearInterval(this.$data.getFilesInPathInterval)
         },
         methods: {
           getLvSize (vg, lv) {
             return this.lvmStructure[vg] && this.lvmStructure[vg].lvs && this.lvmStructure[vg].lvs.find(lvs => lvs.vg_name === vg && lvs.lv_name === lv) ? this.lvmStructure[vg].lvs.find(lvs => lvs.vg_name === vg && lvs.lv_name === lv)["lv_size"] : `VG '${vg}' and/or LV '${lv}' are not found!`
           },
           async backupLv(disk) {
-            const _b = await fetch(`/backup/lv/${disk}`)
+            const _b = await fetch(`/backup/lv/${disk}${ this.$data.keepVersions == 'default'  ? '' : '?keep_versions_count=' + this.$data.keepVersions }`)
             const status = await _b.text()
             console.log(status)
           },
