@@ -291,12 +291,6 @@ class BackupCrServer
     run_command("virsh list --all --name").chomp.chomp.split("\n").select { |e| e != "" }
   end
 
-  private def get_vm_disks(vm_name)
-    results = Array(String).new
-    run_command("virsh dumpxml #{vm_name}").not_nil!.scan(/<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/) { |r| results << r[1].to_s }
-    results
-  end
-
   private def is_vm_exists(vm_name)
     ok = false
     _out = run_command("virsh list --all --name").chomp.chomp
@@ -338,12 +332,8 @@ class BackupCrServer
       STDERR.puts "gzip is not found in the PATH"
       exit(1)
     end
-    if run_command("which sshfs").size == 0
-      STDERR.puts "sshfs is not found in the PATH; you need to install: sudo apt install sshfs/pacman -S sshfs/dnf install sshfs"
-      exit(1)
-    end
     if run_command("which docker").size == 0
-      puts "Docker is not found in the PATH; backup docker volumes will be unavailable"
+      puts "docker is not found in the PATH; backup docker volumes will be unavailable"
       @@docker = false
     end
   end
@@ -589,6 +579,12 @@ class BackupCrServer
     result = @@io.to_s
     @@io.clear
     result
+  end
+
+  private def get_vm_disks(vm_name)
+    results = Array(String).new
+    run_command("virsh dumpxml #{vm_name}").not_nil!.scan(/<source dev=(?:'|")\/dev\/(.+?)(?:'|")\/>/) { |r| results << r[1].to_s }
+    results
   end
 
 end
