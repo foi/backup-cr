@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+VERSION=0.5.0
 echo "Clean packages..."
 rm -f dist/packages/*.rpm
 rm -f dist/packages/*.deb
@@ -18,7 +19,7 @@ touch dist/tmp/opt/backup-cr/custom.env.example
 echo $'TELEGRAM_CHANNEL_ID=changeme\nTELEGRAM_BOT_ID=changeme' > dist/tmp/opt/backup-cr/custom.env.example
 date=$(date '+%Y.%m.%d')
 echo "Creating rpm package..."
-docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t rpm -C /app/dist/tmp --name backup-cr --version $date --iteration 1 --after-install /app/etc/post-install.sh --description "Agile lvm volumes backup system" .
+docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t rpm -C /app/dist/tmp --name backup-cr --version $VERSION --iteration 1 --after-install /app/etc/post-install.sh --before-install /app/etc/before-install.sh --description "Simple backup system" .
 echo "Creating deb package..."
-docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t deb -C /app/dist/tmp --name backup-cr --version $date --iteration 1 --after-install /app/etc/post-install.sh --description "Agile lvm volumes backup system" --deb-no-default-config-files .
+docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t deb -C /app/dist/tmp --name backup-cr --version $VERSION --iteration 1 --after-install /app/etc/post-install.sh --before-install /app/etc/before-install.sh --description "Simple backup system" --deb-no-default-config-files .
 echo "Packages have been successfully builds"

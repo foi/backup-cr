@@ -1,9 +1,3 @@
-# Hack to prevent a segfault for static linking
-# {% if flag?(:static) %}
-#  require "llvm/lib_llvm"
-#  require "llvm/enums"
-# {% end %}
-
 require "router"
 require "json"
 
@@ -36,10 +30,10 @@ class BackupCrServer
   ]
 
   @@PATHS = Hash(String, String | Nil).new
-
+ 
   def initialize
     @CONFIG = Hash(String, String).new
-
+    @VERSION = "0.5.0"
     if File.exists?(".env")
       puts ".env-file found. Reading config..."
       File.read(".env").split("\n").map { |e| e.split("=") }.each do |conf_el|
@@ -359,7 +353,7 @@ class BackupCrServer
       route_handler,
     ])
     server.bind_tcp(Socket::IPAddress.new(@CONFIG["LISTEN_ON"], @CONFIG["PORT"].to_i32))
-    puts "backup-cr is listen on #{@CONFIG["LISTEN_ON"]}:#{@CONFIG["PORT"]}"
+    puts "backup-cr #{@VERSION} is listen on #{@CONFIG["LISTEN_ON"]}:#{@CONFIG["PORT"]}. Feel free to open issue: github.com/foi/backup-cr"
     server.listen
   end
 
