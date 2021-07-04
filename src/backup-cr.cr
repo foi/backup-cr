@@ -137,9 +137,12 @@ class BackupCrServer
     get "/" do |context, params|
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "text/html"
-        # https://github.com/crystal-lang/crystal/issues/1649
-        #context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
-        context.response.print File.read("index.html")
+        {% if flag?(:release) %}
+          # https://github.com/crystal-lang/crystal/issues/1649
+          context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
+        {% else %}
+          context.response.print File.read("index.html")
+        {% end %}
         context
       else
         restrict(context)
