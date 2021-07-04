@@ -33,7 +33,7 @@ class BackupCrServer
  
   def initialize
     @CONFIG = Hash(String, String).new
-    @VERSION = "0.5.0"
+    @VERSION = "0.5.1"
     if File.exists?(".env")
       puts ".env-file found. Reading config..."
       File.read(".env").split("\n").map { |e| e.split("=") }.each do |conf_el|

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 FILE=/opt/backup-cr/.env
 CUSTOM_FILE=/opt/backup-cr/custom.env
 if [ ! -f $FILE ]; then
@@ -13,7 +13,7 @@ else
   echo "Failed to create backup-files group and backup-worker user - maybe it's already exists"
 fi
 
-if  [ -x "$(command -v systemctl)" ];
+if [ -x "$(command -v systemctl)" ];
 then
   systemctl daemon-reload
   if systemctl is-active --quiet backup-cr

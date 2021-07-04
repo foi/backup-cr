@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 if [ -x "$(command -v systemctl)" ];
 then
   if systemctl is-active --quiet backup-cr;

@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-VERSION=0.5.0
+VERSION=0.5.1
 echo "Clean packages..."
 rm -f dist/packages/*.rpm
 rm -f dist/packages/*.deb
