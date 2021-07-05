@@ -111,6 +111,28 @@ class BackupCrServer
       end
     end
 
+    get "/api/mount_size/:pathname" do |context, params|
+      if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
+        if @@PATHS[params["pathname"]]?.nil?
+          context.response.status_code = 500
+          context.response.print "#{params["pathname"]} is not found"
+          context
+        else
+          begin
+            context.response.content_type = "application/json"
+            context.response.print get_mount_size(@@PATHS[params["pathname"]].not_nil!).to_json
+          rescue ex
+            STDERR.puts ex.message
+            context.response.status_code = 500
+            context.response.print ex.message
+          end
+          context
+        end
+      else
+        restrict(context)
+      end
+    end
+
     get "/api/lvm_structure" do |context, params|
       if @CONFIG["ALLOWED_FROM_IPS"].split(",").includes?(get_ip(context))
         context.response.content_type = "application/json"
@@ -219,6 +241,35 @@ class BackupCrServer
   private def does_this_path_exist?(path)
     ok = Dir.exists?(path)
     puts "#{path} #{ok ? "is exist." : "is not exist!"}"
+  end
+
+  private def get_mount_size(path : String)
+    _raw_df_output = @IS_LOCAL ? run_command("df -B1 #{path}") : run_command("ssh -i id_rsa #{@CONFIG["USER"]}@#{@CONFIG["HOST"]} 'df -B1 #{path}'")
+    unless _raw_df_output.nil?
+      parse_df_output(_raw_df_output.chomp, path)
+    end
+  end
+
+  private def parse_df_output(df_output, path) 
+    splitted = df_output.split("\n")
+    if splitted.size == 2 && splitted[1]?
+      dfdata = splitted[1].split(" ").reject {|e| e == ""}
+      if (dfdata[0]? && dfdata[1]? && dfdata[2]? && dfdata[3]? && dfdata[4]? && dfdata[5]?)
+        {
+          "device" => dfdata[0],
+          "total_size_in_b" => dfdata[1].to_i64?,
+          "total_size_h" =>  dfdata[1].to_i64.not_nil!.humanize,
+          "used_size_in_b" => dfdata[2].to_i64?,
+          "used_size_in_h" => dfdata[2].to_i64.not_nil!.humanize,
+          "available_size_in_b" => dfdata[3].to_i64?,
+          "available_size_in_h" => dfdata[3].to_i64.not_nil!.humanize,
+          "percent_used" => dfdata[4],
+          "mountpoint" => dfdata[5]
+        }
+      end
+    else 
+      STDERR.puts "Something went wrong while reading df output of #{path}: #{df_output}"
+    end
   end
 
   private def backup_folder(object, keep_versions_count)
