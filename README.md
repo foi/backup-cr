@@ -8,6 +8,7 @@ development in progress
 
 ```
 sudo su
+apt install -y apt-transport-https
 echo -e "deb https://repos.foifirst.me/backup-cr/debs stable main" > /etc/apt/sources.list.d/backup-cr.list
 wget -O - https://repos.foifirst.me/foi.gpg | apt-key add -
 apt update
