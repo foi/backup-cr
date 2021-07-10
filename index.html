@@ -21,9 +21,10 @@
         <label v-bind:for="i">{{ i }}</label>
       </template>
       <h4>VMs LIST</h4>
+      <h5 v-if="vmList.length == 0">No VMs found</h5>
       <div id="vm-list">
         <template v-for="vm in vmList" v-if="vmList.length > 0">
-          <h5>{{ vm.vm }}</h5>
+          <h5>{{ vm.vm }} <a href="#" @click="backupVMXml(vm.vm)">backup!</h5>
           <ul>
             <li v-for="disk in vm.disks">
               {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }} - <a href="#" @click="backupLv(disk)" v-if="!statuses[disk]">backup! {{ keepVersions == 'default'  ? '' :  '(' + keepVersions + ' versions will be saved)' }}</a><i v-if="statuses[disk]"> pending...</i>
@@ -77,6 +78,12 @@
           async backupLv(disk) {
             const _b = await fetch(`/backup/lv/${disk}${ this.$data.keepVersions == 'default'  ? '' : '?keep_versions_count=' + this.$data.keepVersions }`)
             const status = await _b.text()
+            console.log(status)
+          },
+          async backupVMXml(vmName){
+            const _b = await fetch(`backup/vm-xml/${vmName}${ this.$data.keepVersions == 'default'  ? '' : '?keep_versions_count=' + this.$data.keepVersions }`)
+            const status = await _b.text()
+            alert(status)
             console.log(status)
           },
           async getStatuses(){
