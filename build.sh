@@ -17,7 +17,6 @@ cp .env.local.example dist/tmp/opt/backup-cr
 cp etc/backup-cr.service dist/tmp/usr/lib/systemd/system
 touch dist/tmp/opt/backup-cr/custom.env.example
 echo $'TELEGRAM_CHANNEL_ID=changeme\nTELEGRAM_BOT_ID=changeme' > dist/tmp/opt/backup-cr/custom.env.example
-date=$(date '+%Y.%m.%d')
 echo "Creating rpm package..."
 docker run --rm -it -v $PWD:/app -w /app/dist/packages foifirst/fpm:ruby2.4-fedora27 fpm -s dir -t rpm -C /app/dist/tmp --name backup-cr --version $VERSION --iteration 1 --after-install /app/etc/post-install.sh --before-install /app/etc/before-install.sh --description "Simple backup system" .
 echo "Creating deb package..."
