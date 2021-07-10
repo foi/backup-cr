@@ -2,6 +2,24 @@
 
 development in progress
 
+## HOW TO INSTALL
+
+### Deb-like
+
+```
+sudo su
+echo -e "deb https://repos.foifirst.me/backup-cr/debs stable main" > /etc/apt/sources.list.d/backup-cr.list
+wget -O - https://repos.foifirst.me/foi.gpg | apt-key add -
+apt update
+apt install backup-cr
+
+```
+### RPM-like
+
+```
+
+```
+
 ## FEATURES
 
 0. single executable with no dependencies
