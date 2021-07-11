@@ -111,7 +111,7 @@ module BackupCr
           context.response.content_type = "text/html"
           {% if flag?(:release) %}
             # https://github.com/crystal-lang/crystal/issues/1649
-            context.response.print {{ `cat #{__DIR__}/../index.html`.stringify }}
+            context.response.print {{ `cat #{__DIR__}/../../index.html`.stringify }}
           {% else %}
             context.response.print File.read("index.html")
           {% end %}
