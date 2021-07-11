@@ -24,7 +24,7 @@
       <h5 v-if="vmList.length == 0">No VMs found</h5>
       <div id="vm-list">
         <template v-for="vm in vmList" v-if="vmList.length > 0">
-          <h5>{{ vm.vm }} <a href="#" @click="backupVMXml(vm.vm)">backup!</h5>
+          <h5>{{ vm.vm }} <a href="#" @click="backupVMXml(vm.vm)">backup!</a></h5>
           <ul>
             <li v-for="disk in vm.disks">
               {{ disk.split("/")[0] }}/{{ disk.split("/")[1] }} {{ getLvSize(disk.split("/")[0], disk.split("/")[1]) }} - <a href="#" @click="backupLv(disk)" v-if="!statuses[disk]">backup! {{ keepVersions == 'default'  ? '' :  '(' + keepVersions + ' versions will be saved)' }}</a><i v-if="statuses[disk]"> pending...</i>
@@ -34,10 +34,12 @@
       </div>
       <h4>PATHS</h4>
       <template v-for="(value, name) in paths">
-        <h5>{{ name }} {{ value }} <a href="#" @click="getFilesInPath(name)">[get files list]</a></h5>
-        <ul v-if="filesInPaths[name] && filesInPaths[name].length > 0">
-          <li v-for="f in filesInPaths[name]">{{ formatFilename(f.name) }} - {{ f.size }} - {{ formatDateTime(f.modification_time) }}</li>
-        </ul>
+        <template v-if="value">
+          <h5>{{ name }} {{ value }} <a href="#" @click="getFilesInPath(name)">[get files list]</a></h5>
+          <ul v-if="filesInPaths[name] && filesInPaths[name].length > 0">
+            <li v-for="f in filesInPaths[name]">{{ formatFilename(f.name) }} - {{ f.size }} - {{ formatDateTime(f.modification_time) }}</li>
+          </ul>
+        </template>
       </template>
       {{ statuses }}
     </div>
