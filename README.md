@@ -18,7 +18,17 @@ apt install backup-cr
 ### RPM-like
 
 ```
-
+sudo su
+cat << EOF > /etc/yum.repos.d/backup-cr.repo
+[backup-cr]
+name=backup-cr repo
+baseurl=https://repos.foifirst.me/backup-cr/rpms
+enabled=1
+gpgcheck=1
+skip_if_unavailable=1
+gpgkey=https://repos.foifirst.me/foi.gpg
+EOF
+yum install backup-cr
 ```
 
 ## FEATURES

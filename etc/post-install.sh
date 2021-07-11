@@ -7,7 +7,6 @@ fi
 if [ ! -f $CUSTOM_FILE ]; then
   cp "$CUSTOM_FILE".example $CUSTOM_FILE
 fi
-chmod -R 775 "/opt/backup-cr/*"
 chmod 600 $ENV_FILE
 chmod 600 $CUSTOM_FILE
 if groupadd backup-files && useradd -m -G backup-files backup-worker; then
