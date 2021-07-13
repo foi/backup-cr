@@ -1,9 +1,6 @@
-require "./backup-cr/system-helpers"
-require "./backup-cr/server"
+require "./backup-cr/*"
 
 module BackupCr
-  include SystemHelpers
-  include BackupCr::Web
 
   VERSION       = "0.5.3"
   CONFIG        = Hash(String, String).new
@@ -56,6 +53,6 @@ module BackupCr
   DOCKER = Process.find_executable("docker")
 end
 
-server = BackupCr::Web::Server.new
+server = BackupCr::Server.new
 server.draw_routes
 server.start
