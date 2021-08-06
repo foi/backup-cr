@@ -18,6 +18,7 @@ fi
 if [ -x "$(command -v systemctl)" ];
 then
   systemctl daemon-reload
+  systemctl start backup-cr
   if systemctl is-active --quiet backup-cr
   then
     systemctl restart backup-cr
