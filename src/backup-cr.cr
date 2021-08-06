@@ -2,7 +2,7 @@ require "./backup-cr/*"
 
 module BackupCr
 
-  VERSION       = "0.5.3"
+  BACKUP_CR_VERSION       = "0.5.4"
   CONFIG        = Hash(String, String).new
   CONFIG_FIELDS = {
     "BACKUP_CR_LISTEN_ON",

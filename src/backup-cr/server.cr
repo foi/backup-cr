@@ -123,9 +123,10 @@ module BackupCr
         context
       end
 
-      get "/status/:volume" do |context, params|
+      get "/status" do |context, params|
         context.response.content_type = "text/plain"
-        context.response.print QUEUE[params["volume"]]? && QUEUE[params["volume"]]["status"]? ? QUEUE[params["volume"]]["status"] : "OK"
+        key = context.request.query_params["object"]
+        context.response.print QUEUE[key]? && QUEUE[key]["status"]? ? QUEUE[key]["status"] : "OK"
         context
       end
 
@@ -166,7 +167,7 @@ module BackupCr
         route_handler,
       ])
       server.bind_tcp(Socket::IPAddress.new(CONFIG["LISTEN_ON"], CONFIG["PORT"].to_i32))
-      puts "backup-cr #{VERSION} is listen on #{CONFIG["LISTEN_ON"]}:#{CONFIG["PORT"]}. Feel free to open issue: github.com/foi/backup-cr"
+      puts "backup-cr #{BACKUP_CR_VERSION} is listen on #{CONFIG["LISTEN_ON"]}:#{CONFIG["PORT"]}. Feel free to open issue: github.com/foi/backup-cr"
       server.listen
     end
   end

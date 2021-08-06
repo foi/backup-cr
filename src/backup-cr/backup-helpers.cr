@@ -85,7 +85,7 @@ module BackupCr
       _chown_chmod_output = chown_chmod(path, filename)
       send_to_external_command("files/docker volume", "chmod & chown #{object}: #{_chown_chmod_output}")
       remove_old_backups(path, folder, keep_versions_count)
-      QUEUE.delete(folder)
+      QUEUE.delete(object)
     end
 
     private def backup_vm_xml(vm_name, keep_versions_count)
