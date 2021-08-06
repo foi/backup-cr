@@ -1,11 +1,11 @@
 #!/bin/sh
 set -e
-VERSION=0.5.3
+VERSION=0.5.4
 echo "Clean packages..."
 rm -f dist/packages/*.rpm
 rm -f dist/packages/*.deb
 echo "Static compile..."
-docker run --rm -it -v "$PWD":/app -w /app crystallang/crystal:1.0.0-alpine crystal build --static --release src/backup-cr.cr -o /app/dist/bin/backup-cr
+docker run --rm -it -v "$PWD":/app -w /app crystallang/crystal:1.1.1-alpine crystal build --static --release src/backup-cr.cr -o /app/dist/bin/backup-cr
 echo "Compiled successfully"
 chmod +x dist/bin/backup-cr
 mkdir -p dist/tmp/usr/lib/systemd/system
