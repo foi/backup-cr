@@ -53,7 +53,7 @@ module BackupCr
                 "vg_size"  => vg["vg_size"],
                 "vg_free"  => vg["vg_free"],
                 "pv_count" => vg["pv_count"],
-                "lvs":        finded_lv,
+                "lvs" => finded_lv,
               }
             end
           end
