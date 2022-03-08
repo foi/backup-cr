@@ -9,8 +9,8 @@ development in progress
 ```
 sudo su
 apt install -y apt-transport-https
-echo -e "deb http://repos.foifirst.space/backup-cr/debs stable main" > /etc/apt/sources.list.d/backup-cr.list
-wget -O - http://repos.foifirst.space/foi.gpg | apt-key add -
+echo -e "deb https://repos.foifirst.space/backup-cr/debs stable main" > /etc/apt/sources.list.d/backup-cr.list
+wget -O - https://repos.foifirst.space/foi.gpg | apt-key add -
 apt update
 apt install backup-cr
 
@@ -22,11 +22,11 @@ sudo su
 cat << EOF > /etc/yum.repos.d/backup-cr.repo
 [backup-cr]
 name=backup-cr repo
-baseurl=http://repos.foifirst.space/backup-cr/rpms
+baseurl=https://repos.foifirst.space/backup-cr/rpms
 enabled=1
 gpgcheck=1
 skip_if_unavailable=1
-gpgkey=http://repos.foifirst.space/foi.gpg
+gpgkey=https://repos.foifirst.space/foi.gpg
 EOF
 yum install backup-cr
 ```
